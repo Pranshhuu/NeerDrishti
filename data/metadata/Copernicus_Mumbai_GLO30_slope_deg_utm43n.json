@@ -1,0 +1,55 @@
+{
+  "dataset_id": "Copernicus_Mumbai_GLO30_slope_deg_utm43n",
+  "dataset_name": "Copernicus_Mumbai_GLO30_slope_deg_utm43n",
+  "source": "Copernicus GLO-30",
+  "dataset_type": "slope",
+  "source_url": null,
+  "description": null,
+  "acquisition_date": null,
+  "processing_date": "2026-09-25T13:14:31.253651+00:00",
+  "processing_status": "processed",
+  "parent_dataset_id": "Copernicus_Mumbai_GLO30_filled_utm43n",
+  "crs": {
+    "epsg": 32643,
+    "authority": "EPSG:32643",
+    "name": "WGS 84 / UTM zone 43N",
+    "wkt": "PROJCRS[\"WGS 84 / UTM zone 43N\",BASEGEOGCRS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",ELLIPSOID[\"WGS 84\",6378137,298.257223563,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"EPSG\",4326]],CONVERSION[\"UTM zone 43N\",METHOD[\"Transverse Mercator\",ID[\"EPSG\",9807]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",75,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",0.9996,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"easting\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"northing\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"EPSG\",32643]]",
+    "proj4": "+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs +type=crs"
+  },
+  "resolution": [
+    29.97848729943124,
+    29.97848729943124
+  ],
+  "dimensions": {
+    "width": 3557,
+    "height": 3745
+  },
+  "bounds": {
+    "min_x": 184121.43913900497,
+    "max_x": 290754.9184630819,
+    "min_y": 2102040.237798621,
+    "max_y": 2214309.6727349907
+  },
+  "vertical_reference": null,
+  "horizontal_reference": null,
+  "file_path": "/Users/pranshupradeep/Desktop/Flowshift/data/processed/terrain/Copernicus_Mumbai_GLO30_slope_deg_utm43n.tif",
+  "file_format": "GTiff",
+  "nodata_value": -9999.0,
+  "units": "degrees",
+  "processing_steps": [
+    {
+      "step": "slope",
+      "timestamp": "2026-09-25T13:14:31.253740+00:00",
+      "description": "FlowSight Phase 1 slope",
+      "tool": "GDAL",
+      "version": "3.13.3",
+      "parameters": {
+        "command": "gdaldem slope",
+        "algorithm": "Horn",
+        "compute_edges": true,
+        "units": "degrees"
+      }
+    }
+  ],
+  "metadata_version": "1.0"
+}
