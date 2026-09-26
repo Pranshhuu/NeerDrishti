@@ -6,13 +6,11 @@ import { RainfallTrend } from "@/components/dashboard/RainfallTrend";
 import { WaterLevelTrend } from "@/components/dashboard/WaterLevelTrend";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { WeatherProvider } from "@/components/dashboard/WeatherProvider";
+import { WardRunoffOverview } from "@/components/dashboard/WardRunoffOverview";
 
 import {
   mockSystemStatus,
-  mockFloodRiskMetrics,
-  mockDrainageStatus,
   mockWaterLevelData,
-  mockHighRiskZones,
   mockAlerts,
 } from "@/data/mockData";
 
@@ -25,15 +23,13 @@ export default function Home() {
         <DashboardHero systemStatus={mockSystemStatus} />
 
         <WeatherProvider>
-          <RiskOverviewCards
-            floodRisk={mockFloodRiskMetrics}
-            drainage={mockDrainageStatus}
-            waterLevel={mockWaterLevelData}
-          />
+          <RiskOverviewCards />
+
+          <WardRunoffOverview />
 
           <div className="px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div id="flood-map" className="lg:col-span-2 scroll-mt-24">
-              <FloodRiskMap highRiskZones={mockHighRiskZones} />
+              <FloodRiskMap />
             </div>
             <div id="alerts" className="scroll-mt-24">
               <AlertsPanel alerts={mockAlerts} />

@@ -16,7 +16,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import rasterio
@@ -91,8 +91,23 @@ class WardRunoffService:
         """Path to the BMC administrative ward GeoJSON."""
         return self.data_root / WARD_STAGE / WARD_FILENAME
 
-    def _load_wards(self) -> List[dict]:
-        """Load BMC ward geometries."""
+    def _load_ward_geojson_document(self) -> Dict[str, Any]:
+        """
+        Load and parse the BMC ward GeoJSON document.
+
+        This is the single point of file I/O for BMC ward data.
+        _load_wards() (feature list only) and get_ward_boundaries() (the
+        full FeatureCollection, for direct API exposure) both delegate
+        here, so the source file is read and parsed in exactly one place.
+
+        Returns:
+            The parsed GeoJSON document as a dictionary, unmodified.
+
+        Raises:
+            BasinRunoffDataError: If the file is missing, unreadable, not
+                valid JSON, not a JSON object, or has no non-empty
+                'features' list.
+        """
         if not self.ward_path.is_file():
             raise BasinRunoffDataError(
                 f"BMC ward file not found: {self.ward_path}"
@@ -106,6 +121,11 @@ class WardRunoffService:
                 f"Cannot read BMC ward file: {exc}"
             ) from exc
 
+        if not isinstance(payload, dict):
+            raise BasinRunoffDataError(
+                "BMC ward GeoJSON is not a JSON object."
+            )
+
         features = payload.get("features")
 
         if not isinstance(features, list) or not features:
@@ -113,7 +133,42 @@ class WardRunoffService:
                 "BMC ward GeoJSON contains no features."
             )
 
-        return features
+        return payload
+
+    def _load_wards(self) -> List[dict]:
+        """
+        Load BMC ward geometries.
+
+        Delegates to _load_ward_geojson_document() for the actual file
+        I/O, preserving this method's existing return type and exception
+        behavior exactly.
+        """
+        payload = self._load_ward_geojson_document()
+        return payload["features"]
+
+    def get_ward_boundaries(self) -> Dict[str, Any]:
+        """
+        Return the real BMC administrative ward boundary GeoJSON document.
+
+        This exposes the same source file used internally for basin-to-ward
+        allocation, unmodified: no geometry is simplified, generated, or
+        synthesized, and no property is added, removed, or renamed.
+
+        Returns:
+            The parsed GeoJSON FeatureCollection, exactly as stored on disk.
+
+        Raises:
+            BasinRunoffDataError: If the source file is missing, unreadable,
+                or not a valid GeoJSON FeatureCollection.
+        """
+        payload = self._load_ward_geojson_document()
+
+        if payload.get("type") != "FeatureCollection":
+            raise BasinRunoffDataError(
+                "BMC ward GeoJSON is not a FeatureCollection."
+            )
+
+        return payload
 
     def _rasterize_wards(
         self,

@@ -2,7 +2,10 @@ import math
 
 import pytest
 
-from app.services.runoff.basin_service import BasinRunoffInputError
+from app.services.runoff.basin_service import (
+    BasinRunoffDataError,
+    BasinRunoffInputError,
+)
 from app.services.runoff.ward_service import WardRunoffService
 
 
@@ -129,3 +132,43 @@ def test_blank_scenario_is_rejected(service):
             rainfall_source="ERA5-Land",
             rainfall_scenario="",
         )
+
+
+def test_get_ward_boundaries_returns_feature_collection(service):
+    result = service.get_ward_boundaries()
+
+    assert result["type"] == "FeatureCollection"
+    assert isinstance(result["features"], list)
+    assert len(result["features"]) == 24
+
+    ward_ids = set()
+    for feature in result["features"]:
+        assert "geometry" in feature
+        assert feature["geometry"] is not None
+        assert "properties" in feature
+        ward_ids.add(int(feature["properties"]["gid"]))
+
+    assert ward_ids == set(range(1, 25))
+
+
+def test_get_ward_boundaries_rejects_non_feature_collection(service, monkeypatch):
+    monkeypatch.setattr(
+        service,
+        "_load_ward_geojson_document",
+        lambda: {
+            "type": "SomethingElse",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [72.0, 19.0]},
+                    "properties": {"gid": 1, "name": "A"},
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(
+        BasinRunoffDataError,
+        match="not a FeatureCollection",
+    ):
+        service.get_ward_boundaries()

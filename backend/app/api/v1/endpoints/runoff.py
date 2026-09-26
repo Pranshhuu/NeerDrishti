@@ -10,6 +10,7 @@ or calibrated operational predictions.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -186,6 +187,42 @@ def calculate_ward_runoff(
         source=source,
         generated_at=datetime.now(timezone.utc),
     )
+
+
+@router.get(
+    "/wards/boundaries",
+    summary="Return the existing BMC administrative ward boundaries as GeoJSON",
+)
+def get_ward_boundaries(
+    service: WardRunoffService = Depends(get_ward_runoff_service),
+) -> dict[str, Any]:
+    """
+    Return the real BMC administrative ward boundary GeoJSON.
+
+    This exposes the same BMC ward GeoJSON document already used
+    internally by WardRunoffService for basin-to-ward allocation.
+    Geometry and properties are returned exactly as stored in the
+    source file; nothing is simplified, generated, or synthesized.
+
+    No response_model is declared deliberately: this endpoint returns the
+    source GeoJSON document as-is, and pinning it to a rigid schema would
+    require modeling every possible GeoJSON geometry/property shape for no
+    benefit, since the frontend only needs the document itself.
+
+    Returns:
+        The BMC ward FeatureCollection, unmodified.
+
+    Raises:
+        HTTPException: 503 if the source GeoJSON is missing, unreadable,
+            or not a valid FeatureCollection.
+    """
+    try:
+        return service.get_ward_boundaries()
+    except BasinRunoffDataError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 def get_flow_concentration_service() -> FlowConcentrationService:
