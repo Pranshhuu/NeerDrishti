@@ -14,9 +14,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
+from app.api.v1.endpoints.weather import get_weather_service
 from app.schemas.runoff import (
     BasinRunoffResponse,
     FlowConcentrationResponse,
+    ForecastRunoffResponse,
     RunoffSource,
     WardRunoffResponse,
 )
@@ -29,7 +31,18 @@ from app.services.runoff.basin_service import (
     BasinRunoffInputError,
     BasinRunoffService,
 )
+from app.services.runoff.forecast_coupling_service import (
+    ForecastCouplingServiceError,
+    ForecastRunoffCouplingService,
+)
 from app.services.runoff.ward_service import WardRunoffService
+from app.services.weather_service import (
+    WeatherRequestError,
+    WeatherService,
+    WeatherServiceError,
+    WeatherTimeoutError,
+    WeatherUpstreamError,
+)
 
 router = APIRouter(prefix="/runoff", tags=["runoff"])
 
@@ -310,4 +323,113 @@ def get_flow_concentration_image(
     return FileResponse(
         path=service.visualization_path,
         media_type="image/png",
+    )
+
+
+def get_forecast_coupling_service() -> ForecastRunoffCouplingService:
+    """Provide the forecast-to-runoff coupling service."""
+    return ForecastRunoffCouplingService()
+
+
+@router.get(
+    "/forecast",
+    response_model=ForecastRunoffResponse,
+    summary="Calculate a forecast-driven provisional basin runoff scenario",
+)
+async def calculate_forecast_runoff(
+    weather_service: WeatherService = Depends(get_weather_service),
+    coupling_service: ForecastRunoffCouplingService = Depends(
+        get_forecast_coupling_service
+    ),
+) -> ForecastRunoffResponse:
+    """
+    Calculate a provisional basin runoff scenario from the live forecast.
+
+    Fetches the current default-location (Mumbai) forecast through the
+    existing WeatherService, selects the first available hourly forecast
+    entry, and couples it to BasinRunoffService via
+    ForecastRunoffCouplingService. No second weather client is used and no
+    direct upstream call is made from this endpoint.
+
+    This is a forecast-driven provisional Rational Method runoff scenario.
+    It is not flood depth, flood extent, flood probability, drainage
+    capacity, an official catchment, measured discharge, or an operational
+    flood prediction.
+
+    Raises:
+        HTTPException: 400/504/502 for the underlying weather-fetch
+            failure modes (bad coordinates, upstream timeout, upstream
+            failure), mapped exactly as in the /weather endpoints. 503 if
+            the forecast has no hourly entries, or if BasinRunoffService's
+            terrain/WorldCover inputs are unavailable. 422 if the selected
+            precipitation value is rejected as a rainfall input.
+    """
+    try:
+        weather = await weather_service.get_weather()
+    except WeatherRequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except WeatherTimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)
+        ) from exc
+    except WeatherUpstreamError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+    except WeatherServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
+
+    if not weather.hourly:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Weather forecast contains no hourly entries.",
+        )
+
+    selected_timestamp = weather.hourly[0].timestamp
+
+    try:
+        result = coupling_service.calculate_for_timestamp(
+            weather, selected_timestamp
+        )
+    except BasinRunoffInputError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except BasinRunoffDataError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except ForecastCouplingServiceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    source = RunoffSource(
+        rainfall_source=result.rainfall_source,
+        rainfall_scenario=result.rainfall_scenario,
+        terrain_source=result.terrain_source,
+        landcover_source=result.landcover_source,
+        coefficient_status=result.coefficient_status,
+    )
+
+    return ForecastRunoffResponse(
+        status="completed",
+        selected_forecast_timestamp=result.selected_forecast_timestamp,
+        rainfall_intensity_mm_h=result.rainfall_intensity_mm_h,
+        rainfall_data_type=result.rainfall_data_type,
+        precipitation_basis=result.precipitation_basis,
+        eligible_basin_count=result.eligible_basin_count,
+        runoff_coefficient_low=result.runoff_coefficient_low,
+        runoff_coefficient_high=result.runoff_coefficient_high,
+        peak_discharge_low_m3s=result.peak_discharge_low_m3s,
+        peak_discharge_high_m3s=result.peak_discharge_high_m3s,
+        source=source,
+        generated_at=datetime.now(timezone.utc),
     )

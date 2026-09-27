@@ -18,6 +18,8 @@ __all__ = [
     "BasinRunoffResponse",
     "WardRunoffAllocation",
     "WardRunoffResponse",
+    "FlowConcentrationResponse",
+    "ForecastRunoffResponse",
 ]
 
 
@@ -241,3 +243,59 @@ class FlowConcentrationResponse(BaseModel):
     boundary_source: str
     interpretation: str
     generated_at: datetime
+
+
+class ForecastRunoffResponse(BaseModel):
+    """
+    Summary of a forecast-driven provisional basin runoff scenario.
+
+    Rainfall intensity is taken directly from one hourly weather-forecast
+    entry (e.g. Open-Meteo / ECMWF IFS HRES), not a rain-gauge observation.
+    Values are terrain-derived modeling results using provisional
+    land-cover coefficient bounds. They are not flood depths, flood
+    extents, flood probabilities, drainage capacity, an official
+    catchment, measured discharge, or an operational flood prediction.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(
+        min_length=1,
+        description="Processing outcome, normally 'completed'.",
+    )
+    selected_forecast_timestamp: datetime = Field(
+        description="Timestamp of the hourly forecast entry used for this scenario.",
+    )
+    rainfall_intensity_mm_h: float = Field(
+        ge=0.0,
+        description=(
+            "Forecast precipitation for the selected hour, used directly "
+            "as mm/hour."
+        ),
+    )
+    rainfall_data_type: str = Field(
+        min_length=1,
+        description="Nature of the rainfall input, e.g. 'forecast'.",
+    )
+    precipitation_basis: str = Field(
+        min_length=1,
+        description=(
+            "Explanation of the one-hour precipitation-to-mm/hour "
+            "equivalence used for this scenario."
+        ),
+    )
+    eligible_basin_count: int = Field(
+        ge=0,
+        description="Number of eligible terrain-derived basins used.",
+    )
+    runoff_coefficient_low: RunoffStatistics
+    runoff_coefficient_high: RunoffStatistics
+    peak_discharge_low_m3s: RunoffStatistics
+    peak_discharge_high_m3s: RunoffStatistics
+    source: RunoffSource
+    generated_at: datetime
+
+    @field_validator("status", "rainfall_data_type", "precipitation_basis")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        return _require_not_blank(value)
