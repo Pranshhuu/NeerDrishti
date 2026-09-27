@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { Droplets, Loader2, AlertTriangle } from "lucide-react";
-import Card from "@/components/common/Card";
-import { getWardRunoff, RunoffApiError } from "@/lib/api/runoff";
-import type { WardRunoffResponse } from "@/lib/api/runoff";
+import { Card } from "@/components/common/Card";
+import { getForecastRunoff, RunoffApiError } from "@/lib/api/runoff";
+import type { ForecastRunoffResponse } from "@/lib/api/runoff";
 
 type RunoffScenarioState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; data: WardRunoffResponse };
+  | { status: "ready"; data: ForecastRunoffResponse };
 
 export const RunoffScenarioCard: React.FC = () => {
   const [state, setState] = useState<RunoffScenarioState>({ status: "loading" });
@@ -17,7 +17,7 @@ export const RunoffScenarioCard: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    getWardRunoff()
+    getForecastRunoff()
       .then((response) => {
         if (cancelled) return;
         setState({ status: "ready", data: response });
@@ -27,7 +27,7 @@ export const RunoffScenarioCard: React.FC = () => {
         const message =
           err instanceof RunoffApiError
             ? err.message
-            : "Unable to load runoff scenario data.";
+            : "Unable to load forecast runoff scenario data.";
         setState({ status: "error", message });
       });
 
@@ -49,12 +49,12 @@ export const RunoffScenarioCard: React.FC = () => {
           </span>
         </div>
 
-        <p className="text-slate-400 text-sm mb-3">Runoff Scenario</p>
+        <p className="text-slate-400 text-sm mb-3">Forecast-driven Provisional Runoff</p>
 
         {state.status === "loading" && (
           <div className="flex items-center gap-2 text-slate-500 mb-4">
             <Loader2 size={18} className="animate-spin" />
-            <span className="text-sm">Loading runoff scenario…</span>
+            <span className="text-sm">Loading forecast runoff scenario…</span>
           </div>
         )}
 
@@ -67,39 +67,38 @@ export const RunoffScenarioCard: React.FC = () => {
 
         {state.status === "ready" &&
           (() => {
-            const totalLow =
-              state.data.allocations.reduce(
-                (sum, allocation) => sum + allocation.runoff_low_m3s,
-                0
-              ) + state.data.outside_bmc_runoff_low_m3s;
-
-            const totalHigh =
-              state.data.allocations.reduce(
-                (sum, allocation) => sum + allocation.runoff_high_m3s,
-                0
-              ) + state.data.outside_bmc_runoff_high_m3s;
+            const low = state.data.peak_discharge_low_m3s;
+            const high = state.data.peak_discharge_high_m3s;
+            const forecastTime = new Date(
+              state.data.selected_forecast_timestamp
+            ).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
 
             return (
               <>
                 <div className="mb-4">
                   <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">
-                    Estimated Runoff
+                    Peak Discharge (mean)
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-2xl font-bold text-slate-100">
-                        {totalLow.toFixed(2)}
+                        {low.mean.toFixed(2)}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Low Range (m³/s)
+                        Low (m³/s) · range {low.minimum.toFixed(2)}–{low.maximum.toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-slate-100">
-                        {totalHigh.toFixed(2)}
+                        {high.mean.toFixed(2)}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        High Range (m³/s)
+                        High (m³/s) · range {high.minimum.toFixed(2)}–{high.maximum.toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -107,15 +106,21 @@ export const RunoffScenarioCard: React.FC = () => {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Rainfall Intensity:</span>
+                    <span className="text-slate-400">Forecast Rainfall:</span>
                     <span className="text-slate-200 font-semibold">
                       {state.data.rainfall_intensity_mm_h.toFixed(1)} mm/h
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Wards Covered:</span>
+                    <span className="text-slate-400">Forecast Time:</span>
                     <span className="text-slate-200 font-semibold">
-                      {state.data.ward_count}
+                      {forecastTime}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Eligible Basins:</span>
+                    <span className="text-slate-200 font-semibold">
+                      {state.data.eligible_basin_count}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -127,10 +132,12 @@ export const RunoffScenarioCard: React.FC = () => {
                 </div>
 
                 <p className="text-[10px] text-slate-500 mt-3">
-                  {state.data.source.rainfall_source} • {state.data.source.rainfall_scenario}
+                  {state.data.source.rainfall_source}
                 </p>
                 <p className="text-[10px] text-slate-500 mt-1 italic">
-                  Rational Method estimate · not measured discharge
+                  Provisional Rational Method estimate · not measured discharge,
+                  flood depth, inundation extent, drainage capacity, or an
+                  operational flood prediction
                 </p>
               </>
             );

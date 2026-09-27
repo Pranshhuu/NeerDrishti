@@ -132,3 +132,60 @@ export async function getWardRunoff(
     );
   }
 }
+
+export interface RunoffStatistics {
+  minimum: number;
+  median: number;
+  mean: number;
+  maximum: number;
+}
+
+export interface ForecastRunoffResponse {
+  status: string;
+  selected_forecast_timestamp: string;
+  rainfall_intensity_mm_h: number;
+  rainfall_data_type: string;
+  precipitation_basis: string;
+  eligible_basin_count: number;
+  runoff_coefficient_low: RunoffStatistics;
+  runoff_coefficient_high: RunoffStatistics;
+  peak_discharge_low_m3s: RunoffStatistics;
+  peak_discharge_high_m3s: RunoffStatistics;
+  source: {
+    rainfall_source: string;
+    rainfall_scenario: string;
+    terrain_source: string;
+    landcover_source: string;
+    coefficient_status: string;
+  };
+  generated_at: string;
+}
+
+export async function getForecastRunoff(): Promise<ForecastRunoffResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/runoff/forecast`, {
+      cache: "no-store",
+    });
+  } catch {
+    throw new RunoffApiError(
+      "Unable to reach the NeerDrishti forecast runoff service."
+    );
+  }
+
+  if (!response.ok) {
+    throw new RunoffApiError(
+      `Forecast runoff service returned an error (HTTP ${response.status}).`,
+      response.status
+    );
+  }
+
+  try {
+    return (await response.json()) as ForecastRunoffResponse;
+  } catch {
+    throw new RunoffApiError(
+      "Forecast runoff service returned an unreadable response."
+    );
+  }
+}
