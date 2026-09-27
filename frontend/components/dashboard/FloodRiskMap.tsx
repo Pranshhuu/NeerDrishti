@@ -19,11 +19,10 @@
  * the browser rather than deferring only what gets rendered.
  *
  * IMPORTANT - what this map currently is and is not:
- *   This is BMC administrative ward geometry only. It is NOT flood depth,
- *   inundation extent, a drainage network, an official drainage catchment,
- *   flood probability, measured discharge, or an operational flood
- *   prediction. A terrain-derived flow-concentration layer will be added
- *   separately in a later phase.
+ *   This shows BMC administrative ward geometry plus a terrain-derived
+ *   flow-concentration indicator (D8 flow accumulation). It is NOT flood
+ *   depth, inundation extent, a drainage network, hydraulic capacity,
+ *   measured discharge, or an operational flood prediction.
  *
  * Leaflet's CSS is imported once, globally, from app/layout.tsx - not here.
  */
@@ -100,8 +99,13 @@ export const FloodRiskMap: React.FC = () => {
             <span className="text-slate-300 font-medium">
               BMC administrative wards
             </span>
-            , not drainage catchments. A terrain-derived flow-concentration
-            layer will be added separately as its own analytical layer.
+            , not drainage catchments. The map also includes a{" "}
+            <span className="text-slate-300 font-medium">
+              terrain-derived flow-concentration indicator
+            </span>{" "}
+            based on D8 flow accumulation. Neither layer represents flood
+            depth, inundation extent, a drainage network, or an operational
+            flood prediction.
           </p>
         </div>
 

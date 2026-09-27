@@ -10,9 +10,9 @@ or calibrated operational predictions.
 """
 
 from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 
 from app.schemas.runoff import (
     BasinRunoffResponse,
@@ -195,7 +195,7 @@ def calculate_ward_runoff(
 )
 def get_ward_boundaries(
     service: WardRunoffService = Depends(get_ward_runoff_service),
-) -> dict[str, Any]:
+) -> dict:
     """
     Return the real BMC administrative ward boundary GeoJSON.
 
@@ -269,4 +269,45 @@ def get_flow_concentration(
         boundary_source=result.boundary_source,
         interpretation=result.interpretation,
         generated_at=datetime.now(timezone.utc),
+    )
+
+
+@router.get(
+    "/flow-concentration/image",
+    summary="Return the terrain-derived flow-concentration visualization PNG",
+)
+def get_flow_concentration_image(
+    service: FlowConcentrationService = Depends(
+        get_flow_concentration_service
+    ),
+) -> FileResponse:
+    """
+    Return the precomputed flow-concentration visualization as a PNG image.
+
+    This is a terrain-derived flow-concentration visualization only. It is
+    not flood depth, inundation extent, a drainage network, hydraulic
+    capacity, or an operational flood prediction. It renders the same
+    underlying D8 flow-accumulation analysis reported by the JSON
+    /flow-concentration endpoint, for direct visual inspection.
+
+    Returns:
+        The visualization PNG, served with media_type "image/png".
+
+    Raises:
+        HTTPException: 503 if the visualization PNG has not been generated
+            or cannot be found at its expected location.
+    """
+    if not service.visualization_path.is_file():
+        error = FlowConcentrationDataError(
+            f"Flow-concentration visualization not found: "
+            f"{service.visualization_path}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+    return FileResponse(
+        path=service.visualization_path,
+        media_type="image/png",
     )

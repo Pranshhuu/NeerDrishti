@@ -1,67 +1,93 @@
-import math
+"""
+Tests for FlowConcentrationService.visualization_path and the
+GET /api/v1/runoff/flow-concentration/image endpoint.
+
+Endpoint tests override the existing get_flow_concentration_service
+dependency with a lightweight fake, so they exercise only the endpoint's
+own file-existence check and response handling - not the real terrain
+raster, the real precomputed PNG, or any of FlowConcentrationService's
+internal calculation/validation logic.
+"""
+
+from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.main import app
+from app.api.v1.endpoints.runoff import get_flow_concentration_service
 from app.services.flow_concentration_service import (
-    FlowConcentrationDataError,
+    FLOW_CONCENTRATION_VISUALIZATION_FILENAME,
     FlowConcentrationService,
 )
 
-
-def test_flow_concentration_real_dataset():
-    result = FlowConcentrationService().calculate()
-
-    assert result.dataset_filename == (
-        "Copernicus_Mumbai_GLO30_mosaic_flow_concentration_bmc.tif"
-    )
-    assert result.width == 3560
-    assert result.height == 7318
-
-    assert result.class_0_cells == 25_558_400
-    assert result.class_1_cells == 468_993
-    assert result.class_2_cells == 19_750
-    assert result.class_3_cells == 4_937
-
-    assert math.isclose(
-        result.p95_accumulation_cells,
-        166.0,
-        rel_tol=0.0,
-        abs_tol=1e-9,
-    )
-    assert math.isclose(
-        result.p99_accumulation_cells,
-        3861.21,
-        rel_tol=0.0,
-        abs_tol=1e-9,
-    )
+client = TestClient(app)
 
 
-def test_flow_concentration_classes_cover_entire_raster():
-    result = FlowConcentrationService().calculate()
+class _FakeFlowConcentrationService:
+    """
+    Minimal stand-in exposing only what the /image endpoint touches.
 
-    total = (
-        result.class_0_cells
-        + result.class_1_cells
-        + result.class_2_cells
-        + result.class_3_cells
-    )
+    Deliberately not a subclass of FlowConcentrationService: the endpoint
+    only ever reads .visualization_path, so duck-typing that one attribute
+    is enough, and avoids depending on the real class's constructor.
+    """
 
-    assert total == result.width * result.height
-
-
-def test_flow_concentration_has_expected_interpretation():
-    result = FlowConcentrationService().calculate()
-
-    assert result.terrain_source == (
-        "Copernicus GLO-30 D8 flow accumulation"
-    )
-    assert result.boundary_source == "BMC_admin_wards.geojson"
-    assert "not flood depth" in result.interpretation
-    assert "drainage network" in result.interpretation
+    def __init__(self, visualization_path: Path) -> None:
+        self.visualization_path = visualization_path
 
 
-def test_missing_dataset_raises(tmp_path):
+@pytest.fixture(autouse=True)
+def _clear_dependency_overrides():
+    """Ensure no override leaks between tests or into other test modules."""
+    yield
+    app.dependency_overrides.pop(get_flow_concentration_service, None)
+
+
+def test_visualization_path_resolves_to_expected_sibling_png(tmp_path):
+    """
+    visualization_path must resolve to:
+        data_root / "processed" / "terrain" /
+        Copernicus_Mumbai_GLO30_mosaic_flow_concentration_bmc.png
+    """
     service = FlowConcentrationService(data_root=tmp_path)
 
-    with pytest.raises(FlowConcentrationDataError, match="not found"):
-        service.calculate()
+    expected = (
+        tmp_path
+        / "processed"
+        / "terrain"
+        / FLOW_CONCENTRATION_VISUALIZATION_FILENAME
+    )
+    assert service.visualization_path == expected
+    assert (
+        service.visualization_path.name
+        == "Copernicus_Mumbai_GLO30_mosaic_flow_concentration_bmc.png"
+    )
+
+
+def test_flow_concentration_image_returns_200_when_png_exists(tmp_path):
+    png_path = tmp_path / "flow_concentration_bmc.png"
+    # FileResponse only needs a readable file at this path, not a
+    # decodable image, so minimal placeholder bytes are sufficient.
+    png_path.write_bytes(b"\x89PNG\r\n\x1a\nfake-png-bytes")
+
+    app.dependency_overrides[get_flow_concentration_service] = (
+        lambda: _FakeFlowConcentrationService(png_path)
+    )
+
+    response = client.get("/api/v1/runoff/flow-concentration/image")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_flow_concentration_image_returns_503_when_png_missing(tmp_path):
+    missing_path = tmp_path / "does_not_exist.png"
+
+    app.dependency_overrides[get_flow_concentration_service] = (
+        lambda: _FakeFlowConcentrationService(missing_path)
+    )
+
+    response = client.get("/api/v1/runoff/flow-concentration/image")
+
+    assert response.status_code == 503

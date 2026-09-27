@@ -21,6 +21,10 @@ FLOW_CONCENTRATION_FILENAME = (
     "Copernicus_Mumbai_GLO30_mosaic_flow_concentration_bmc.tif"
 )
 
+FLOW_CONCENTRATION_VISUALIZATION_FILENAME = (
+    "Copernicus_Mumbai_GLO30_mosaic_flow_concentration_bmc.png"
+)
+
 
 class FlowConcentrationServiceError(Exception):
     """Base error for flow-concentration processing."""
@@ -65,6 +69,16 @@ class FlowConcentrationService:
             / "processed"
             / "terrain"
             / FLOW_CONCENTRATION_FILENAME
+        )
+
+    @property
+    def visualization_path(self) -> Path:
+        """Path to the processed flow-concentration visualization PNG."""
+        return (
+            self.data_root
+            / "processed"
+            / "terrain"
+            / FLOW_CONCENTRATION_VISUALIZATION_FILENAME
         )
 
     def calculate(self) -> FlowConcentrationSummary:
