@@ -3,7 +3,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Droplets, Loader2, AlertTriangle, MapPin } from "lucide-react";
 import Card from "@/components/common/Card";
-import { getWardRunoff, RunoffApiError, type WardRunoffResponse } from "@/lib/api/runoff";
+import {
+  getForecastRunoff,
+  getWardRunoff,
+  RunoffApiError,
+  type ForecastRunoffResponse,
+  type WardRunoffResponse,
+} from "@/lib/api/runoff";
 
 function formatArea(areaM2: number): string {
   return `${(areaM2 / 1_000_000).toFixed(1)} km²`;
@@ -20,11 +26,23 @@ export const WardRunoffOverview: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    getWardRunoff()
-      .then((response) => {
-        if (!cancelled) setData(response);
-      })
-      .catch((err: unknown) => {
+    // Use the same forecast scenario as the forecast-driven flood-risk
+    // system: fetch the selected forecast hour first, then request ward
+    // runoff for exactly that rainfall intensity, source, and timestamp.
+    async function load() {
+      try {
+        const forecast: ForecastRunoffResponse = await getForecastRunoff();
+        if (cancelled) return;
+
+        const response = await getWardRunoff(
+          forecast.rainfall_intensity_mm_h,
+          forecast.source.rainfall_source,
+          forecast.selected_forecast_timestamp
+        );
+        if (cancelled) return;
+
+        setData(response);
+      } catch (err: unknown) {
         if (cancelled) return;
 
         setError(
@@ -32,7 +50,10 @@ export const WardRunoffOverview: React.FC = () => {
             ? err.message
             : "Unable to load ward runoff data."
         );
-      });
+      }
+    }
+
+    void load();
 
     return () => {
       cancelled = true;

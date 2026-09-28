@@ -7,6 +7,7 @@ import { WaterLevelTrend } from "@/components/dashboard/WaterLevelTrend";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { WeatherProvider } from "@/components/dashboard/WeatherProvider";
 import { WardRunoffOverview } from "@/components/dashboard/WardRunoffOverview";
+import { FloodRiskOverview } from "@/components/dashboard/FloodRiskOverview";
 
 import {
   mockSystemStatus,
@@ -26,6 +27,8 @@ export default function Home() {
           <RiskOverviewCards />
 
           <WardRunoffOverview />
+
+          <FloodRiskOverview />
 
           <div className="px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div id="flood-map" className="lg:col-span-2 scroll-mt-24">

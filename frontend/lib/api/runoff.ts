@@ -189,3 +189,59 @@ export async function getForecastRunoff(): Promise<ForecastRunoffResponse> {
     );
   }
 }
+
+export interface WardFloodRiskResult {
+  ward_id: number;
+  ward_name: string;
+  runoff_low_m3s: number;
+  runoff_high_m3s: number;
+  flow_concentration_high_fraction: number;
+  flow_concentration_very_high_fraction: number;
+  risk_score: number;
+  risk_level: string;
+}
+
+export interface FloodRiskResponse {
+  status: string;
+  selected_forecast_timestamp: string;
+  rainfall_intensity_mm_h: number;
+  rainfall_source: string;
+  rainfall_data_type: string;
+  ward_count: number;
+  wards: WardFloodRiskResult[];
+  terrain_source: string;
+  landcover_source: string;
+  coefficient_status: string;
+  flow_concentration_methodology: string;
+  risk_methodology: string;
+  generated_at: string;
+}
+
+export async function getFloodRisk(): Promise<FloodRiskResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/flood-risk`, {
+      cache: "no-store",
+    });
+  } catch {
+    throw new RunoffApiError(
+      "Unable to reach the NeerDrishti flood-risk service."
+    );
+  }
+
+  if (!response.ok) {
+    throw new RunoffApiError(
+      `Flood-risk service returned an error (HTTP ${response.status}).`,
+      response.status
+    );
+  }
+
+  try {
+    return (await response.json()) as FloodRiskResponse;
+  } catch {
+    throw new RunoffApiError(
+      "Flood-risk service returned an unreadable response."
+    );
+  }
+}

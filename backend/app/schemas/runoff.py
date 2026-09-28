@@ -299,3 +299,88 @@ class ForecastRunoffResponse(BaseModel):
     @classmethod
     def _not_blank(cls, value: str) -> str:
         return _require_not_blank(value)
+    # Add "WardFloodRiskResult" and "FloodRiskResponse" to the existing __all__ list.
+
+class WardFloodRiskResult(BaseModel):
+    """
+    Provisional flood-risk indicator for one BMC ward.
+
+    A deterministic heuristic combination of forecast-driven runoff and
+    terrain flow-concentration signals. Not a flood depth, inundation
+    extent, flood probability, or operational prediction.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ward_id: int = Field(ge=1, description="BMC administrative ward identifier.")
+    ward_name: str = Field(min_length=1, description="BMC administrative ward name.")
+    runoff_low_m3s: float = Field(
+        ge=0.0, description="Low provisional Rational Method runoff for this ward, in m³/s."
+    )
+    runoff_high_m3s: float = Field(
+        ge=0.0, description="High provisional Rational Method runoff for this ward, in m³/s."
+    )
+    flow_concentration_high_fraction: float = Field(
+        ge=0.0, le=1.0,
+        description="Fraction of this ward's classified cells in the P95-P99 flow-accumulation class.",
+    )
+    flow_concentration_very_high_fraction: float = Field(
+        ge=0.0, le=1.0,
+        description="Fraction of this ward's classified cells in the P99-and-above flow-accumulation class.",
+    )
+    risk_score: float = Field(
+        ge=0.0, le=100.0,
+        description="Deterministic 0-100 heuristic risk indicator score. Not a calibrated probability.",
+    )
+    risk_level: str = Field(
+        min_length=1,
+        description="Categorical indicator derived from risk_score: LOW, MODERATE, HIGH, or VERY_HIGH.",
+    )
+
+    @field_validator("ward_name", "risk_level")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        return _require_not_blank(value)
+
+
+class FloodRiskResponse(BaseModel):
+    """
+    Provisional ward-level flood-risk indicator for one forecast hour.
+
+    Combines forecast-driven ward runoff and terrain flow-concentration
+    class coverage into a transparent, deterministic heuristic. This is
+    NOT flood depth, inundation extent, flood probability, drainage
+    capacity, an official catchment analysis, measured discharge, or an
+    operational flood prediction, and involves no machine learning.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str = Field(min_length=1, description="Processing outcome, normally 'completed'.")
+    selected_forecast_timestamp: datetime = Field(
+        description="Timestamp of the hourly forecast entry used for this indicator."
+    )
+    rainfall_intensity_mm_h: float = Field(
+        ge=0.0, description="Forecast precipitation for the selected hour, used directly as mm/hour."
+    )
+    rainfall_source: str = Field(min_length=1, description="Rainfall forecast source and model.")
+    rainfall_data_type: str = Field(min_length=1, description="Nature of the rainfall input, e.g. 'forecast'.")
+    ward_count: int = Field(ge=0, description="Number of BMC wards represented in the result.")
+    wards: list[WardFloodRiskResult] = Field(
+        description="Per-ward flood-risk indicator results."
+    )
+    terrain_source: str = Field(min_length=1, description="Terrain dataset used for modeling basins.")
+    landcover_source: str = Field(min_length=1, description="Land-cover dataset used for runoff coefficients.")
+    coefficient_status: str = Field(min_length=1, description="Status of the runoff coefficients, e.g. 'provisional'.")
+    flow_concentration_methodology: str = Field(
+        min_length=1, description="Explanation of how the flow-concentration fractions were derived."
+    )
+    risk_methodology: str = Field(
+        min_length=1, description="Explanation of how risk_score and risk_level were derived."
+    )
+    generated_at: datetime
+
+    @field_validator("status", "rainfall_source", "rainfall_data_type")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        return _require_not_blank(value)

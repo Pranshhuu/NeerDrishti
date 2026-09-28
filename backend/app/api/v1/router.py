@@ -28,7 +28,7 @@ Resulting routes:
 from fastapi import APIRouter
 
 from app.core.constants import API_VERSION_PREFIX
-from app.api.v1.endpoints import processing, runoff, system, terrain, weather
+from app.api.v1.endpoints import flood_risk, processing, runoff, system, terrain, weather
 
 router = APIRouter(prefix=API_VERSION_PREFIX)
 
@@ -38,3 +38,4 @@ router.include_router(terrain.router)
 router.include_router(processing.router)
 router.include_router(runoff.router)
 router.include_router(weather.router)
+router.include_router(flood_risk.router)
