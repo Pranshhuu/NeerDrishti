@@ -1,0 +1,80 @@
+{
+  "status": "provisional",
+  "warning": "WorldCover classes do not directly equal Rational Method land-use categories. These ranges are proxy assumptions informed by FHWA HEC-22 and must be calibrated/validated before operational use.",
+  "reference": "FHWA HEC-22, 4th Edition (2024)",
+  "reference_url": "https://www.fhwa.dot.gov/engineering/hydraulics/pubs/hif24006.pdf",
+  "classes": {
+    "10": {
+      "name": "Tree cover",
+      "c_range": [
+        0.1,
+        0.3
+      ],
+      "proxy": "Forested/open vegetated areas"
+    },
+    "20": {
+      "name": "Shrubland",
+      "c_range": [
+        0.1,
+        0.3
+      ],
+      "proxy": "Open vegetated areas"
+    },
+    "30": {
+      "name": "Grassland",
+      "c_range": [
+        0.1,
+        0.4
+      ],
+      "proxy": "Meadow/open areas"
+    },
+    "40": {
+      "name": "Cropland",
+      "c_range": [
+        0.2,
+        0.4
+      ],
+      "proxy": "Cultivated fields"
+    },
+    "50": {
+      "name": "Built-up",
+      "c_range": [
+        0.5,
+        0.95
+      ],
+      "proxy": "Urban land; actual value depends strongly on impervious surface/use"
+    },
+    "60": {
+      "name": "Bare/sparse vegetation",
+      "c_range": [
+        0.1,
+        0.3
+      ],
+      "proxy": "Unimproved/open areas"
+    },
+    "80": {
+      "name": "Permanent water",
+      "c_range": [
+        0.0,
+        0.0
+      ],
+      "proxy": "Water surface; not treated as contributing land area in Rational Method"
+    },
+    "90": {
+      "name": "Herbaceous wetland",
+      "c_range": [
+        0.05,
+        0.3
+      ],
+      "proxy": "Wet/open vegetated area; requires local calibration"
+    },
+    "95": {
+      "name": "Mangroves",
+      "c_range": [
+        0.05,
+        0.3
+      ],
+      "proxy": "Wet vegetated area; requires local calibration"
+    }
+  }
+}
